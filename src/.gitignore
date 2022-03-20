@@ -1,5 +1,7 @@
 .vs/
 bin/
 obj/
+local-copies/
 
 *.user
+scan-report-*.json
