@@ -2,7 +2,7 @@
 
 A console app to download a local copy of a website.
 
-The user provides the URL as the only parameter of the app.
+The user provides the URL.
 The program downloads the URL to a local copy, and tries to analyze it for further links to follow on the same domain.
 Rinse and repeat till all links are exhausted.
 
@@ -30,3 +30,17 @@ dotnet run https://microsoft.com
 ```
 
 Or, of course, compile your own executable and just run it with the URL as the parameter.
+
+## Other Options
+
+There are two options apart from the URL.
+
+Set timeout for all HTTP calls. Defaults to 5 seconds.
+```
+-t <MILLISECONDS>
+```
+
+Set path to store the local copies and reports. Defaults to current working directory.
+```
+-p <PATH>
+```
