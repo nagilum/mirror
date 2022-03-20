@@ -15,12 +15,6 @@
         public string StoragePath { get; set; } = Directory.GetCurrentDirectory();
 
         /// <summary>
-        /// Whether or not to analyze the HTML and follow the links to further documents.
-        /// Defaults to false.
-        /// </summary>
-        public bool AnalyzeHtmlAndFollowLinks { get; set; }
-
-        /// <summary>
         /// URL to parse.
         /// </summary>
         public Uri? Uri { get; set; }
@@ -71,11 +65,6 @@
                         skipNext = true;
                         break;
 
-                    // Whether or not to analyze the HTML and follow the links to further documents.
-                    case "-r":
-                        this.AnalyzeHtmlAndFollowLinks = true;
-                        break;
-
                     // Uri.
                     default:
                         if (skipNext)
@@ -105,8 +94,6 @@
                 "  -t <MILLISECONDS>  Set timeout for all HTTP calls. Defaults to 5 seconds.",
                 Environment.NewLine,
                 "  -p <PATH>          Set path to store the local copies and reports. Defaults to current working directory.",
-                Environment.NewLine,
-                "  -r                 Whether or not to analyze the HTML and follow the links to further documents. Defaults to false.",
                 Environment.NewLine,
                 Environment.NewLine);
         }

@@ -217,12 +217,9 @@ namespace mirror
                 bytes);
 
             // Analyze HTML and extract new links to scan.
-            if (CmdArgs.AnalyzeHtmlAndFollowLinks)
-            {
-                ExtractLinksFromHtml(
-                    uri,
-                    bytes);
-            }
+            ExtractLinksFromHtml(
+                uri,
+                bytes);
         }
 
         /// <summary>
