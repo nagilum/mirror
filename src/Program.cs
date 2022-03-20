@@ -15,17 +15,14 @@ namespace mirror
         private static Uri? BaseUri { get; set; }
 
         /// <summary>
-        /// Lock object.
+        /// Parse command-line arguments.
         /// </summary>
-        private static readonly object ConsoleLock = new();
+        private static CommandLineArguments CmdArgs { get; set; } = null!;
 
         /// <summary>
         /// Main download manager.
         /// </summary>
-        private static HttpClient DownloadClient { get; } = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(5)
-        };
+        private static HttpClient DownloadClient { get; } = new();
 
         /// <summary>
         /// List of errors.
@@ -46,11 +43,28 @@ namespace mirror
             // Log the start.
             var start = DateTimeOffset.Now;
 
-            // Check if first arg is a valid URL.
-            if (!ValidateBaseUri(args?.FirstOrDefault()))
+            // Parse the command-line arguments.
+            try
             {
+                CmdArgs = new CommandLineArguments(args);
+            }
+            catch (Exception ex)
+            {
+                ConsoleEx.WriteException(ex);
                 return;
             }
+
+            if (CmdArgs?.Uri == null)
+            {
+                CommandLineArguments.ShowOptions();
+                return;
+            }
+
+            BaseUri = CmdArgs.Uri;
+            UriQueue.Add(CmdArgs.Uri);
+
+            // Set timeout.
+            DownloadClient.Timeout = TimeSpan.FromMilliseconds(CmdArgs.TimeoutMilliseconds);
 
             // Scan the next URI in line.
             var index = -1;
@@ -76,7 +90,7 @@ namespace mirror
             try
             {
                 var file = Path.Combine(
-                    Directory.GetCurrentDirectory(),
+                    CmdArgs.StoragePath,
                     $"scan-report-{DateTimeOffset.Now:yyyy-MM-dd-HH-mm-ss}.json");
 
                 var obj = new
@@ -98,7 +112,7 @@ namespace mirror
                         WriteIndented = true
                     });
 
-                WriteObjects(
+                ConsoleEx.WriteObjects(
                     "Writing report to ",
                     ConsoleColor.Blue,
                     file,
@@ -112,39 +126,39 @@ namespace mirror
             }
             catch (Exception ex)
             {
-                WriteException(ex);
+                ConsoleEx.WriteException(ex);
             }
 
             // Write some stats.
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "Run started ",
                 ConsoleColor.Blue,
                 start,
                 Environment.NewLine,
                 (byte) 0x00);
 
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "Run ended ",
                 ConsoleColor.Blue,
                 end,
                 Environment.NewLine,
                 (byte) 0x00);
 
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "Run took ",
                 ConsoleColor.Blue,
                 duration,
                 Environment.NewLine,
                 (byte) 0x00);
 
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "Total URLs scanned ",
                 ConsoleColor.Blue,
                 UriQueue.Count,
                 Environment.NewLine,
                 (byte) 0x00);
 
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "Total errors while scanning: ",
                 ConsoleColor.Blue,
                 Errors.Count,
@@ -160,7 +174,7 @@ namespace mirror
         private static async Task ScanUriAsync(Uri uri, int index)
         {
             // Update log.
-            WriteObjects(
+            ConsoleEx.WriteObjects(
                 "[",
                 ConsoleColor.Blue,
                 index + 1,
@@ -203,9 +217,12 @@ namespace mirror
                 bytes);
 
             // Analyze HTML and extract new links to scan.
-            ExtractLinksFromHtml(
-                uri,
-                bytes);
+            if (CmdArgs.AnalyzeHtmlAndFollowLinks)
+            {
+                ExtractLinksFromHtml(
+                    uri,
+                    bytes);
+            }
         }
 
         /// <summary>
@@ -292,10 +309,12 @@ namespace mirror
         {
             var parts = new List<string>
             {
-                Directory.GetCurrentDirectory(),
+                CmdArgs.StoragePath,
                 "local-copies",
                 uri.Host
             };
+
+            var isDir = uri.ToString().EndsWith("/");
 
             foreach (var segment in uri.Segments)
             {
@@ -332,7 +351,8 @@ namespace mirror
 
             string filename;
 
-            if (parts.Count > 3)
+            if (parts.Count > 3 &&
+                !isDir)
             {
                 filename = parts.Last();
                 parts.RemoveAt(parts.Count - 1);
@@ -410,94 +430,6 @@ namespace mirror
             {
                 Errors.Add($"Error writing local copy: {path} - {ex.Message}");
                 return;
-            }
-        }
-
-        /// <summary>
-        /// Check that the given URL is a valid one.
-        /// </summary>
-        /// <param name="url">URL to validate.</param>
-        /// <returns>Success.</returns>
-        private static bool ValidateBaseUri(string? url)
-        {
-            try
-            {
-                if (url == null)
-                {
-                    throw new Exception("First parameter has to be a valid URL.");
-                }
-
-                BaseUri = new Uri(url);
-                UriQueue.Add(BaseUri);
-            }
-            catch (Exception ex)
-            {
-                WriteException(ex);
-            }
-
-            return BaseUri != null;
-        }
-
-        /// <summary>
-        /// Write an exception to console.
-        /// </summary>
-        /// <param name="ex">Exception to write.</param>
-        private static void WriteException(Exception ex)
-        {
-            var list = new List<object>
-            {
-                ConsoleColor.Red,
-                "Error",
-                (byte) 0x00,
-                ": "
-            };
-
-            while (true)
-            {
-                list.Add($"{ex.Message}{Environment.NewLine}");
-
-                if (ex.InnerException == null)
-                {
-                    break;
-                }
-
-                ex = ex.InnerException;
-            }
-
-            list.Add(Environment.NewLine);
-
-            WriteObjects(list.ToArray());
-        }
-
-        /// <summary>
-        /// Use objects to manupulate the console.
-        /// </summary>
-        /// <param name="list">List of objects.</param>
-        private static void WriteObjects(params object[] list)
-        {
-            lock (ConsoleLock)
-            {
-                foreach (var item in list)
-                {
-                    // Is is a color?
-                    if (item is ConsoleColor cc)
-                    {
-                        Console.ForegroundColor = cc;
-                    }
-
-                    // Do we need to reset the color?
-                    else if (item is byte b &&
-                             b == 0x00)
-                    {
-                        Console.ResetColor();
-                    }
-
-                    // Anything else, just write it to console.
-                    else
-                    {
-                        Console.Write(item);
-                    }
-                }
             }
         }
     }
