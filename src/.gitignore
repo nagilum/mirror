@@ -3,5 +3,7 @@ bin/
 obj/
 local-copies/
 
+Properties/launchSettings.json
+
 *.user
 scan-report-*.json
