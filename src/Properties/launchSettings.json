@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "mirror": {
+      "commandName": "Project",
+      "commandLineArgs": "https://www.asstr.org"
+    }
+  }
+}
